@@ -8,10 +8,10 @@ const root = document.documentElement;
 const gameGrid = document.querySelector('.game-grid')
 const messages = document.querySelector('#messages')
 
-const defaultDelay = 300; // ms
+const defaultDelay = 100; // ms
 let delay = defaultDelay;
 
-const defaultState = ['xy_5-3', 'xy_5-5', 'xy_5-7', 'xy_6-4', 'xy_6-6', 'xy_7-5'];
+const defaultState = ['xy4_3', 'xy4_5', 'xy4_7', 'xy4_4','xy8_3', 'xy5_5', 'xy5_7', 'xy6_4', 'xy6_6', 'xy7_5', 'xy7_6', 'xy8_6', 'xy8_8'];
 
 let liveCells = {};
 let frozen = false;
@@ -52,7 +52,7 @@ function generateGridCells() {
     for (let i = 0; i < optionsGridSize.value; i++) {
         for (let j = 0; j < optionsGridSize.value; j++) {
             const gridSquare = document.createElement('div');
-            gridSquare.id = `xy_${i}-${j}`
+            gridSquare.id = `xy${i}_${j}`
             gridSquare.classList.add('grid-square')
             gridSquare.style.width = `${600/optionsGridSize.value}px`
             gridSquare.style.height = `${600/optionsGridSize.value}px`
@@ -79,45 +79,40 @@ defaultState.forEach( (id) => {
 //// State Transitions ////
 ///////////////////////////
 
-// function filterInvalid(array) {
-//     return array.filter(
-//         (coordinate) => {
-//             const [row, column] = coordinate;
-//             return  !(row < 0 || row > optionsGridSize.value || column < 0 || column > optionsGridSize.value)
-//         }
-//     )
-// }
-
-function filterInvalid(array){
-    return array;
+function filterInvalid(coordinate) {
+    if(coordinate.length !== 2){
+        throw Error(`Check yo self: ${coordinate}`)
+    }
+    const [row, column] = coordinate;
+    return  (row < 0 || row > optionsGridSize.value-1 || column < 0 || column > optionsGridSize.value-1)
 }
 
 function horAdj([row, column]){   
     const left = [row, column - 1];
     const right = [row, column + 1];
     const adjacents = [left, right]
-    return filterInvalid(adjacents)
+    return adjacents
 }
 
 function vertAdj([row, column]){   
     const above = [row - 1, column];
     const below = [row + 1, column];
     const adjacents = [above, below]
-    return filterInvalid(adjacents)
+    return adjacents
 }
 
 function backDiaAdj([row, column]){   
     const topleft = [row - 1, column - 1];
     const bottomright = [row + 1, column + 1];
     const adjacents = [topleft, bottomright]
-    return filterInvalid(adjacents)
+    return adjacents
 }
 
 function forDiaAdj([row, column]){  
     const topright = [row - 1, column + 1];
     const bottomleft = [row + 1, column - 1];
     const adjacents = [topright, bottomleft]
-    return filterInvalid(adjacents)
+    return adjacents
 }
 
 const adjFuncMap = {
@@ -213,13 +208,7 @@ function checkUpdateRules(id, isAlive, count){
 
 
 function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
-    const id = `xy_${coordinate[0]}-${coordinate[1]}`
-
-    if(cellUpdateMemo[id]){
-        return []
-    } else {
-        cellUpdateMemo[id] = true;
-    }
+    const id = `xy${coordinate[0]}_${coordinate[1]}`
 
     const activeAdjFuncs = computeActiveAdjFuncs();
 
@@ -237,16 +226,24 @@ function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
     let cellUpdates = []
 
     if(stop){
+        if(cellUpdateMemo[id]){
+            return []
+        } else {
+            cellUpdateMemo[id] = true;
+        }
+
         let aliveCellsCounter = 0;
+
         for(const neighbor of neighborhood){
-            const id = `xy_${neighbor[0]}-${neighbor[1]}`
+            const id = `xy${neighbor[0]}_${neighbor[1]}`
             if(liveCells[id]){
                 aliveCellsCounter++
             }
         }
-        const id = `xy_${coordinate[0]}-${coordinate[1]}`
+
         const isAlive = liveCells[id] ? true: false
         const update = checkUpdateRules(id, isAlive, aliveCellsCounter);
+
         if(update){
             return update
         }
@@ -254,7 +251,7 @@ function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
         neighborhood.push(coordinate)
         for(const cell of neighborhood){
             cellUpdates.push(
-                computeUpdates(cell, optionsHoodRadius.value, cellUpdateMemo, stop = true)
+                computeUpdates(cell, optionsHoodRadius.value, cellUpdateMemo, true)
             )
         }
     }
@@ -277,15 +274,9 @@ gameGrid.addEventListener("click", (event) => {
 
 let done = false
 
-let count = 0;
-
 function gameLoop(){
     if(!done){
         updateGameState();
-        count++
-        if(count == 1){
-            return;
-        }
         setTimeout( () => {
             window.requestAnimationFrame(gameLoop)
         }, delay);
@@ -297,7 +288,7 @@ function updateGameState(){
     let cellUpdates = []
 
     for(const liveCell in liveCells ){
-        const coordinate = liveCell.replace('xy_', '').split('-').map( (elem) => Number(elem) )
+        const coordinate = liveCell.replace('xy', '').split('_').map( (elem) => Number(elem) )
         cellUpdates.push(
             computeUpdates(coordinate, optionsHoodRadius.value, cellUpdateMemo)
         )
@@ -306,29 +297,30 @@ function updateGameState(){
 
     cellUpdates = cellUpdates.flat()
 
-    console.log('cellUpdates!!!: ', cellUpdates)
-
     for(const cellUpdate of cellUpdates){
-        console.log(cellUpdate)
         const id = cellUpdate.id
+        const coordinate = id.replace('xy', '').split('_').map( (elem) => Number(elem) )
 
         switch(cellUpdate.action){
+            
             case 'resurrect':
                 liveCells[id] = {
                     'id': id,
                 };
-                const deadCell = document.querySelector(`#${id}`)
-                styleSquare(deadCell, 'live-cell')
+                if(!filterInvalid(coordinate)){
+                    const deadCell = document.querySelector(`#${id}`)
+                    styleSquare(deadCell, 'live-cell')
+                }
                 break
             case 'kill':
                 delete liveCells[id]
-                const liveCell = document.querySelector(`#${id}`)
-                styleSquare(liveCell, 'live-cell')
+                if(!filterInvalid(coordinate)){
+                    const liveCell = document.querySelector(`#${id}`)
+                    styleSquare(liveCell, 'live-cell')
+                }
                 break
         }
     }
-
-    console.log(liveCells)
 }
 
 const startButton = document.querySelector('#button-start');
@@ -344,7 +336,6 @@ const resetButton = document.querySelector('#button-reset');
 resetButton.addEventListener('click', () => {
     done = true;
     frozen = false;
-    removeLiveStyling(gameGrid.children);
     removeChildren(gameGrid);
     generateGridCells();
     
@@ -359,12 +350,6 @@ resetButton.addEventListener('click', () => {
 
     messages.innerHTML = "<h4>How does it feel to be God?</h4>";
 })
-
-function removeLiveStyling(collection) {
-    for (const element of collection) {
-        styleSquare(element, 'live-cell')
-    }
-}
 
 function removeChildren(element) {
     while (element.lastElementChild) {
