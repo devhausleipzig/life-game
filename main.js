@@ -139,55 +139,6 @@ function computeActiveAdjFuncs(){
     return activeAdjFuncs;
 }
 
-// function recursiveCheck(player, coordinate, adjacencyFunction, winLength, currentLength = 1, memo = null){
-
-//     if( currentLength == winLength ) {
-//         return true;
-//     }
-
-//     if(memo == null){
-//         memo = new Set()
-//     }
-
-//     let winFlag = false;
-
-//     let [row, column] = coordinate;
-//     let id = `xy_${row}-${column}`
-//     memo.add(id)
-
-//     const adjacents = adjacencyFunction(coordinate).filter( 
-//         (adjacent) => {
-//             let [row, column] = adjacent;
-//             let id = `xy_${row}-${column}`
-//             return !(memo.has(id)) //keep if adjacent is not in memo
-//         }
-//     )
-
-//     for(const adjacent of adjacents){
-//         if(winFlag){
-//             return winFlag; // shortcircuit looping through adjacents if win already found
-//         }
-
-//         let [row, column] = adjacent;
-//         let id = `xy_${row}-${column}`
-
-//         if ( checkIfMarked(id) ){
-//             memo.add(id)
-//             if (whichPlayer(id) == player){
-//                 winFlag = winFlag || recursiveCheck(player, adjacent, adjacencyFunction, winLength, currentLength + 1, memo);
-//             }
-//         }
-//     }
-
-//     return winFlag;
-// }
-
-
-
- // if cell is alive, 2 or 3 neighbors survives
-// less or more, dies
-// if cell is alive, needs exactly 3 neighbors to resurrect
-
 function checkUpdateRules(id, isAlive, count){
     if(isAlive){
         if(count <2 || count>3){
@@ -206,8 +157,7 @@ function checkUpdateRules(id, isAlive, count){
     }
 }
 
-
-function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
+function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, depth = 0){
     const id = `xy${coordinate[0]}_${coordinate[1]}`
 
     const activeAdjFuncs = computeActiveAdjFuncs();
@@ -225,7 +175,7 @@ function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
 
     let cellUpdates = []
 
-    if(stop){
+    if(depth >= hoodRadius){
         if(cellUpdateMemo[id]){
             return []
         } else {
@@ -251,7 +201,7 @@ function computeUpdates(coordinate, hoodRadius, cellUpdateMemo, stop = false){
         neighborhood.push(coordinate)
         for(const cell of neighborhood){
             cellUpdates.push(
-                computeUpdates(cell, optionsHoodRadius.value, cellUpdateMemo, true)
+                computeUpdates(cell, hoodRadius, cellUpdateMemo, depth+1)
             )
         }
     }
